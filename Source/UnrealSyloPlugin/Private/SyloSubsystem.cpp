@@ -27,7 +27,7 @@ TFuture<FSyloLoadResult> USyloSubsystem::LoadSyloDIDFuture(const FString& SyloDI
 	Action->LoadSyloDID(SyloDID, Cache).Next([Action, Promise, ActiveLoadsCopy](bool bResult)
 	{
 		FSyloLoadResult Result;
-		Result.bResult = bResult;
+		Result.bSuccess = bResult;
 		Result.Data = Action->GetData();
 
 		ActiveLoadsCopy->Remove(Action);

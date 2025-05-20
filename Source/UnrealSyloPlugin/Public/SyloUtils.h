@@ -3,7 +3,7 @@
 
 namespace SyloUtils
 {
-	inline bool IsValidDID(const FString& DID)
+	UNREALSYLOPLUGIN_API inline bool IsValidDID(const FString& DID)
 	{
 		return FSyloDID(DID).bValidDID;
 	}

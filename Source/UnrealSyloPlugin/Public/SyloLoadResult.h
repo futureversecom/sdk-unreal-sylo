@@ -7,12 +7,12 @@
 #include "SyloLoadResult.generated.h"
 
 USTRUCT(BlueprintType)
-struct FSyloLoadResult
+struct UNREALSYLOPLUGIN_API FSyloLoadResult
 {
 	GENERATED_BODY()
 public:
 	UPROPERTY()
-	bool bResult = false;
+	bool bSuccess = false;
 
 	/* Keep data as sharedptr to prevent needless copying of large amounts of data */
 	TSharedPtr<TArray<uint8>> Data;
