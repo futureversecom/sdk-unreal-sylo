@@ -17,6 +17,8 @@ private:
 	void HandleLoadFailure();
 	void HandleLoadSuccess();
 
+	FString MakeRequestURI() const;
+
 	TSharedPtr<TPromise<bool>> LoadPromise;
 	
 	FSyloDID DID;

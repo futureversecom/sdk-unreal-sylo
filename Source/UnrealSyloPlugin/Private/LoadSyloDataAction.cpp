@@ -1,6 +1,9 @@
 #include "LoadSyloDataAction.h"
 
+#include "HttpModule.h"
 #include "SyloUtils.h"
+#include "Interfaces/IHttpResponse.h"
+#include "Log/LogSylo.h"
 
 TFuture<bool> FLoadSyloDataAction::LoadSyloDID(const FString& InDID, const TSharedPtr<FSyloCache>& SyloCache)
 {
@@ -58,6 +61,10 @@ TFuture<bool> FLoadSyloDataAction::GetResolverID()
 		return Promise->GetFuture();
 	}
 
+	// TODO query chainstate for this
+	ResolverID = TEXT("fv-sylo-resolver-dev");
+	Promise->SetValue(true);
+	
 	return Promise->GetFuture();
 }
 
@@ -65,12 +72,48 @@ TFuture<bool> FLoadSyloDataAction::GetResolverEndpoint()
 {
 	TSharedPtr<TPromise<bool>> Promise = MakeShared<TPromise<bool>>();
 
+	// TODO query chainstate for this
+	if (ResolverID == FString(TEXT("fv-sylo-resolver-dev")))
+	{
+		ResolverEndpoint = TEXT("https://sylo-resolver.data.storage-sylo.futureverse.dev");
+		Promise->SetValue(true);
+		return Promise->GetFuture();
+	}
+
+	Promise->SetValue(false);
 	return Promise->GetFuture();
 }
 
 TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 {
 	TSharedPtr<TPromise<bool>> Promise = MakeShared<TPromise<bool>>();
+
+	FString RequestURI = MakeRequestURI();
+	// FString BearerToken = TEXT("NCo38NLfRDvB5......Fheascn3tA7pFHcoRPVe5zr-");
+
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
+	HttpRequest->SetURL(RequestURI);
+	HttpRequest->SetVerb(TEXT("GET"));
+	HttpRequest->SetHeader(TEXT("accept"), TEXT("*/*"));
+	// HttpRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *BearerToken));
+
+	HttpRequest->OnProcessRequestComplete().BindLambda(
+		[Promise](FHttpRequestPtr Request, const FHttpResponsePtr& Response, bool bWasSuccessful)
+		{
+			if (bWasSuccessful && Response.IsValid() && EHttpResponseCodes::IsOk(Response->GetResponseCode()))
+			{
+				// You could do something with the data here: Response->GetContent()
+				UE_LOG(LogSylo, Verbose, TEXT("Sylo data retrieved: %llu bytes"), Response->GetContentLength());
+				Promise->SetValue(true);
+			}
+			else
+			{
+				UE_LOG(LogSylo, Error, TEXT("Failed to fetch Sylo data: %s"), 
+					Response.IsValid() ? *Response->GetContentAsString() : TEXT("No response"));
+				Promise->SetValue(false);
+			}
+		}
+	);
 
 	return Promise->GetFuture();
 }
@@ -85,4 +128,9 @@ void FLoadSyloDataAction::HandleLoadSuccess()
 {
 	LoadPromise->SetValue(true);
 	LoadPromise = nullptr;
+}
+
+FString FLoadSyloDataAction::MakeRequestURI() const
+{
+	return FString::Printf(TEXT("%s/api/objects/get/%s"), *ResolverEndpoint, *DID.DataId);
 }
