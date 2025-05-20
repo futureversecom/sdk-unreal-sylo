@@ -12,7 +12,7 @@ struct FSyloLoadResult
 	GENERATED_BODY()
 public:
 	UPROPERTY()
-	bool bResult;
+	bool bResult = false;
 
 	/* Keep data as sharedptr to prevent needless copying of large amounts of data */
 	TSharedPtr<TArray<uint8>> Data;
