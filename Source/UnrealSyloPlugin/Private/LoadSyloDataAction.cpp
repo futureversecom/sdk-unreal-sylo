@@ -1,6 +1,7 @@
 #include "LoadSyloDataAction.h"
 
 #include "HttpModule.h"
+#include "SyloPluginSettings.h"
 #include "SyloUtils.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Log/LogSylo.h"
@@ -89,13 +90,13 @@ TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 	TSharedPtr<TPromise<bool>> Promise = MakeShared<TPromise<bool>>();
 
 	FString RequestURI = MakeRequestURI();
-	// FString BearerToken = TEXT("NCo38NLfRDvB5......Fheascn3tA7pFHcoRPVe5zr-");
+	FString BearerToken = GetDefault<USyloPluginSettings>()->TempBearerToken;
 
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 	HttpRequest->SetURL(RequestURI);
 	HttpRequest->SetVerb(TEXT("GET"));
 	HttpRequest->SetHeader(TEXT("accept"), TEXT("*/*"));
-	// HttpRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *BearerToken));
+	HttpRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *BearerToken));
 
 	HttpRequest->OnProcessRequestComplete().BindLambda(
 		[Promise](FHttpRequestPtr Request, const FHttpResponsePtr& Response, bool bWasSuccessful)
@@ -114,6 +115,8 @@ TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 			}
 		}
 	);
+
+	HttpRequest->ProcessRequest();
 
 	return Promise->GetFuture();
 }
