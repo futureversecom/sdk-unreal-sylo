@@ -63,7 +63,7 @@ TFuture<bool> FLoadSyloDataAction::GetResolverID()
 	}
 
 	// TODO query chainstate for this
-	ResolverID = TEXT("fv-sylo-resolver-dev");
+	ResolverID = TEXT("fv-sylo-resolver-staging");
 	Promise->SetValue(true);
 	
 	return Promise->GetFuture();
@@ -77,6 +77,13 @@ TFuture<bool> FLoadSyloDataAction::GetResolverEndpoint()
 	if (ResolverID == FString(TEXT("fv-sylo-resolver-dev")))
 	{
 		ResolverEndpoint = TEXT("https://sylo-resolver.data.storage-sylo.futureverse.dev");
+		Promise->SetValue(true);
+		return Promise->GetFuture();
+	}
+
+	if (ResolverID == FString(TEXT("fv-sylo-resolver-staging")))
+	{
+		ResolverEndpoint = TEXT("https://sylo-resolver.data.storage-sylo.futureverse.cloud");
 		Promise->SetValue(true);
 		return Promise->GetFuture();
 	}
@@ -98,19 +105,25 @@ TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 	HttpRequest->SetHeader(TEXT("accept"), TEXT("*/*"));
 	HttpRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *BearerToken));
 
+	LogHttpRequest(HttpRequest);
+
+	TSharedPtr<FLoadSyloDataAction> SharedThis = AsShared();
+
 	HttpRequest->OnProcessRequestComplete().BindLambda(
-		[Promise](FHttpRequestPtr Request, const FHttpResponsePtr& Response, bool bWasSuccessful)
+		[Promise, SharedThis](FHttpRequestPtr Request, const FHttpResponsePtr& Response, bool bWasSuccessful)
 		{
 			if (bWasSuccessful && Response.IsValid() && EHttpResponseCodes::IsOk(Response->GetResponseCode()))
 			{
-				// You could do something with the data here: Response->GetContent()
 				UE_LOG(LogSylo, Verbose, TEXT("Sylo data retrieved: %llu bytes"), Response->GetContentLength());
+				
+				*SharedThis->Data = Response->GetContent();
 				Promise->SetValue(true);
 			}
 			else
 			{
 				UE_LOG(LogSylo, Error, TEXT("Failed to fetch Sylo data: %s"), 
 					Response.IsValid() ? *Response->GetContentAsString() : TEXT("No response"));
+				
 				Promise->SetValue(false);
 			}
 		}
@@ -133,7 +146,20 @@ void FLoadSyloDataAction::HandleLoadSuccess()
 	LoadPromise = nullptr;
 }
 
+void FLoadSyloDataAction::LogHttpRequest(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& HttpRequest) const
+{
+	FString Headers;
+
+	for (auto Header : HttpRequest->GetAllHeaders())
+	{
+		Headers += Header + TEXT("&");
+	}
+
+	UE_LOG(LogSylo, Verbose, TEXT("Sylo data request: Type: %s | Headers: %s | URL: %s"), *HttpRequest->GetVerb(), *Headers, *HttpRequest->GetURL());
+}
+
 FString FLoadSyloDataAction::MakeRequestURI() const
 {
-	return FString::Printf(TEXT("%s/api/objects/get/%s"), *ResolverEndpoint, *DID.DataId);
+	FString AuthType = TEXT("access_token");
+	return FString::Printf(TEXT("%s/api/v1/objects/get/%s/%s?authType=%s"), *ResolverEndpoint, *DID.DataOwner, *DID.DataId, *AuthType);
 }

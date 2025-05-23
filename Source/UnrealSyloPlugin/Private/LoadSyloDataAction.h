@@ -2,6 +2,8 @@
 #include "SyloCache.h"
 #include "SyloDID.h"
 
+class IHttpRequest;
+
 class FLoadSyloDataAction : public TSharedFromThis<FLoadSyloDataAction>
 {
 public:
@@ -16,6 +18,8 @@ private:
 
 	void HandleLoadFailure();
 	void HandleLoadSuccess();
+
+	void LogHttpRequest(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& HttpRequest) const;
 
 	FString MakeRequestURI() const;
 
