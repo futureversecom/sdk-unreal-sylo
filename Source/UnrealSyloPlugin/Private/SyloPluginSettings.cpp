@@ -2,3 +2,8 @@
 
 
 #include "SyloPluginSettings.h"
+
+USyloPluginSettings::USyloPluginSettings()
+{
+	CategoryName = FName(TEXT("Plugins"));
+}

@@ -14,6 +14,5 @@ class UNREALSYLOPLUGIN_API USyloPluginSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(Config, EditAnywhere)
-	FString TempBearerToken;
+	USyloPluginSettings();
 };

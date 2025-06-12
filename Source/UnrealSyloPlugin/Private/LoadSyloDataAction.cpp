@@ -1,14 +1,16 @@
 #include "LoadSyloDataAction.h"
 
 #include "HttpModule.h"
-#include "SyloPluginSettings.h"
 #include "SyloUtils.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Log/LogSylo.h"
+#include "SyloAccessSource/ISyloAccessSource.h"
 
-TFuture<bool> FLoadSyloDataAction::LoadSyloDID(const FString& InDID, const TSharedPtr<FSyloCache>& SyloCache)
+TFuture<bool> FLoadSyloDataAction::LoadSyloDID(const FString& InDID, const TSharedPtr<FSyloAccessContainer>& InAccessContainer, const TSharedPtr<FSyloCache>& SyloCache)
 {
 	LoadPromise = MakeShared<TPromise<bool>>();
+	AccessContainer = InAccessContainer;
+	check(AccessContainer.IsValid());
 
 	if (!SyloUtils::IsValidDID(InDID))
 	{
@@ -96,8 +98,17 @@ TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 {
 	TSharedPtr<TPromise<bool>> Promise = MakeShared<TPromise<bool>>();
 
+	TSharedPtr<ISyloAccessSource> SyloAccessSource = AccessContainer->GetAccessSource(ResolverID);
+	
+	if (!SyloAccessSource.IsValid())
+	{
+		UE_LOG(LogSylo, Warning, TEXT("FLoadSyloDataAction::GetDataFromEndpoint failed to find SyloAccessSource for ResolverID: %s"), *ResolverID);
+		Promise->SetValue(false);
+		return Promise->GetFuture();
+	}
+	
 	FString RequestURI = MakeRequestURI();
-	FString BearerToken = GetDefault<USyloPluginSettings>()->TempBearerToken;
+	FString BearerToken = SyloAccessSource->GetAccessToken();
 
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 	HttpRequest->SetURL(RequestURI);
@@ -112,17 +123,44 @@ TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 	HttpRequest->OnProcessRequestComplete().BindLambda(
 		[Promise, SharedThis](FHttpRequestPtr Request, const FHttpResponsePtr& Response, bool bWasSuccessful)
 		{
-			if (bWasSuccessful && Response.IsValid() && EHttpResponseCodes::IsOk(Response->GetResponseCode()))
+			if (!Response.IsValid())
 			{
-				UE_LOG(LogSylo, Verbose, TEXT("Sylo data retrieved: %llu bytes"), Response->GetContentLength());
+				UE_LOG(LogSylo, Error, TEXT("FLoadSyloDataAction::GetDataFromEndpoint received invalid response"));
+				Promise->SetValue(false);
+				return;
+			}
+			
+			if (bWasSuccessful && EHttpResponseCodes::IsOk(Response->GetResponseCode()))
+			{
+				UE_LOG(LogSylo, Verbose, TEXT("FLoadSyloDataAction::GetDataFromEndpoint succesfully retrieved data: %llu bytes"), Response->GetContentLength());
 				
 				*SharedThis->Data = Response->GetContent();
 				Promise->SetValue(true);
 			}
+			else if (Response->GetResponseCode() == EHttpResponseCodes::Denied)
+			{
+				UE_LOG(LogSylo, Log, TEXT("FLoadSyloDataAction::GetDataFromEndpoint access token expired, attempting refresh ..."));
+				
+				SharedThis->RefreshAccessToken().Next([Promise, SharedThis](bool bSuccess)
+				{
+					if (!bSuccess)
+					{
+						Promise->SetValue(false);
+						return;
+					}
+
+					// TODO handle possible infinite loop
+					SharedThis->GetDataFromEndpoint().Next([Promise](bool bSuccess)
+					{
+						Promise->SetValue(bSuccess);
+					});
+				});
+			}
 			else
 			{
-				UE_LOG(LogSylo, Error, TEXT("Failed to fetch Sylo data: %s"), 
-					Response.IsValid() ? *Response->GetContentAsString() : TEXT("No response"));
+				UE_LOG(LogSylo, Error, TEXT("FLoadSyloDataAction::GetDataFromEndpoint Failed to fetch Sylo data: Code: %s Response: %s"), 
+					*EHttpResponseCodes::GetDescription((EHttpResponseCodes::Type)Response->GetResponseCode()).ToString(),
+					*Response->GetContentAsString());
 				
 				Promise->SetValue(false);
 			}
@@ -130,6 +168,28 @@ TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 	);
 
 	HttpRequest->ProcessRequest();
+
+	return Promise->GetFuture();
+}
+
+TFuture<bool> FLoadSyloDataAction::RefreshAccessToken()
+{
+	TSharedPtr<TPromise<bool>> Promise = MakeShared<TPromise<bool>>();
+
+	// Prevent infinite loop
+	if (bRefreshTokenRequested)
+	{
+		UE_LOG(LogSylo, Warning, TEXT("FLoadSyloDataAction::RefreshAccessToken Refreshing token request twice in the same load action. Aborting ..."))
+		Promise->SetValue(false);
+		return Promise->GetFuture();
+	}
+	
+	AccessContainer->GetAccessSource(ResolverID)->RefreshAccessToken().Next([Promise](bool bSuccess)
+	{
+		Promise->SetValue(bSuccess);
+	});
+
+	bRefreshTokenRequested = true;
 
 	return Promise->GetFuture();
 }

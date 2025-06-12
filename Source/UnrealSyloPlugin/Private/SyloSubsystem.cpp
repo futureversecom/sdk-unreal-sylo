@@ -24,7 +24,7 @@ TFuture<FSyloLoadResult> USyloSubsystem::LoadSyloDIDFuture(const FString& SyloDI
 
 	TSharedPtr<TArray<TSharedPtr<FLoadSyloDataAction>>> ActiveLoadsCopy = ActiveLoads;
 
-	Action->LoadSyloDID(SyloDID, Cache).Next([Action, Promise, ActiveLoadsCopy](bool bResult)
+	Action->LoadSyloDID(SyloDID, SyloAccessContainer, Cache).Next([Action, Promise, ActiveLoadsCopy](bool bResult)
 	{
 		FSyloLoadResult Result;
 		Result.bSuccess = bResult;
@@ -44,4 +44,10 @@ void USyloSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	Cache = MakeShared<FSyloCache>();
 	ActiveLoads = MakeShared<TArray<TSharedPtr<FLoadSyloDataAction>>>();
+	SyloAccessContainer = MakeShared<FSyloAccessContainer>();;
+}
+
+void USyloSubsystem::SetSyloAccessSource(const FString& Sylo, const TSharedPtr<ISyloAccessSource>& AccessSource)
+{
+	SyloAccessContainer->SetSyloAccessSource(Sylo, AccessSource);
 }
