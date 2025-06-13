@@ -197,13 +197,11 @@ TFuture<bool> FLoadSyloDataAction::RefreshAccessToken()
 void FLoadSyloDataAction::HandleLoadFailure()
 {
 	LoadPromise->SetValue(false);
-	LoadPromise = nullptr;
 }
 
 void FLoadSyloDataAction::HandleLoadSuccess()
 {
 	LoadPromise->SetValue(true);
-	LoadPromise = nullptr;
 }
 
 void FLoadSyloDataAction::LogHttpRequest(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& HttpRequest) const
