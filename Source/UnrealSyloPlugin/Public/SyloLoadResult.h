@@ -15,7 +15,7 @@ struct UNREALSYLOPLUGIN_API FSyloLoadResult
 	GENERATED_BODY()
 public:
 	/* Flag showing if the load failed or not */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	bool bSuccess = false;
 
 	/* Keep data as sharedptr to prevent needless copying of large amounts of data, can be null if load failed */
