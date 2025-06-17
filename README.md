@@ -36,7 +36,7 @@ This structure breaks down as follows:
 
 ### 1. Add the SDK to your project
 
-Add the `UnrealSyloPlugin` to your project's plugins folder and enable it in the **Plugin Manager**.
+Add the `UnrealSyloPlugin` to your project's plugins folder and enable it in the **Plugins** tab in unreal.
 
 ### 2. Access Sylo Subsystem
 
