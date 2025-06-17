@@ -23,7 +23,7 @@ This structure breaks down as follows:
 
 ---
 
-## 🚀 Features
+## ✨ Features
 
 - ✅ Load Sylo DID data using **Blueprints** or **C++**
 - ✅ Uses a **subsystem** pattern for easy integration into game instances
