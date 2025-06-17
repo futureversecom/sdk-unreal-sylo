@@ -38,7 +38,7 @@ This structure breaks down as follows:
 
 Add the `UnrealSyloPlugin` to your project's plugins folder and enable it in the **Plugin Manager**.
 
-### 2. Initialize the Sylo Subsystem
+### 2. Access Sylo Subsystem
 
 The `USyloSubsystem` is automatically created by Unreal if your GameInstance inherits from `UGameInstance`. You can access it like this:
 
