@@ -1,8 +1,10 @@
-# Unreal Sylo SDK
+# Unreal Engine Sylo SDK
 
-An Unreal Engine plugin that provides a simple API for accessing data associated with a **Sylo Decentralized Identifier (DID)**.
+**A Sylo data access plugin for Unreal Engine, by [Futureverse](https://www.futureverse.com)**
 
-This SDK allows your game or experience to resolve and retrieve data stored under a Sylo DID using either Blueprints or C++.
+The **Sylo SDK** is an Unreal Engine plugin for accessing off-chain decentralized data using **Sylo DIDs (Decentralized Identifiers)**. It provides a simple interface for loading Sylo data via Blueprints or C++, with built-in support for authentication and asynchronous requests.
+
+> For more on Sylo and the broader Futureverse developer ecosystem, visit the [Futureverse Documentation Hub](https://docs.futureverse.com).
 
 ---
 
@@ -36,7 +38,7 @@ This structure breaks down as follows:
 
 ### 1. Add the SDK to your project
 
-Add the `UnrealSyloPlugin` to your project's plugins folder and enable it in the **Plugins** tab in unreal.
+Add the `UnrealSyloPlugin` to your project's plugins folder and enable it in the **Plugins** tab in Unreal.
 
 ### 2. Access Sylo Subsystem
 
@@ -99,6 +101,6 @@ Returned by all data load methods:
 
 ---
 
-## 📝 License
+## 📄 License
 
-© 2025 Futureverse Corporation Limited. All rights reserved.
+This SDK is released under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
