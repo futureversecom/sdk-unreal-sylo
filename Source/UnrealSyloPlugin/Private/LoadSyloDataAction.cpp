@@ -6,6 +6,18 @@
 #include "Log/LogSylo.h"
 #include "SyloAccessSource/ISyloAccessSource.h"
 
+FLoadSyloDataAction::~FLoadSyloDataAction()
+{
+	for (auto EndpointPromise : GetDataFromEndpointPromises)
+	{
+		if (!EndpointPromise.IsValid()) continue;
+		
+		EndpointPromise->SetValue(false);
+	}
+
+	GetDataFromEndpointPromises.Empty();
+}
+
 TFuture<bool> FLoadSyloDataAction::LoadSyloDID(const FString& InDID, const TSharedPtr<FSyloAccessContainer>& InAccessContainer, const TSharedPtr<FSyloCache>& SyloCache)
 {
 	LoadPromise = MakeShared<TPromise<bool>>();
@@ -110,7 +122,7 @@ TFuture<bool> FLoadSyloDataAction::GetResolverEndpoint()
 
 TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 {
-	TSharedPtr<TPromise<bool>> Promise = MakeShared<TPromise<bool>>();
+	TSharedPtr<TPromise<bool>> Promise = GetDataFromEndpointPromises.Add_GetRef(MakeShared<TPromise<bool>>());
 
 	TSharedPtr<ISyloAccessSource> SyloAccessSource = AccessContainer->GetAccessSource(ResolverID);
 
@@ -143,6 +155,7 @@ TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 			{
 				UE_LOG(LogSylo, Error, TEXT("FLoadSyloDataAction::GetDataFromEndpoint received invalid response"));
 				Promise->SetValue(false);
+				SharedThis->GetDataFromEndpointPromises.Remove(Promise);
 				return;
 			}
 			
@@ -152,6 +165,7 @@ TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 				
 				*SharedThis->Data = Response->GetContent();
 				Promise->SetValue(true);
+				SharedThis->GetDataFromEndpointPromises.Remove(Promise);
 			}
 			else if (Response->GetResponseCode() == EHttpResponseCodes::Denied)
 			{
@@ -162,13 +176,15 @@ TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 					if (!bSuccess)
 					{
 						Promise->SetValue(false);
+						SharedThis->GetDataFromEndpointPromises.Remove(Promise);
 						return;
 					}
 
 					// TODO handle possible infinite loop
-					SharedThis->GetDataFromEndpoint().Next([Promise](bool bSuccess)
+					SharedThis->GetDataFromEndpoint().Next([Promise, SharedThis](bool bSuccess)
 					{
 						Promise->SetValue(bSuccess);
+						SharedThis->GetDataFromEndpointPromises.Remove(Promise);
 					});
 				});
 			}
@@ -179,6 +195,7 @@ TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 					*Response->GetContentAsString());
 				
 				Promise->SetValue(false);
+				SharedThis->GetDataFromEndpointPromises.Remove(Promise);
 			}
 		}
 	);

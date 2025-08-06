@@ -8,6 +8,8 @@ class IHttpRequest;
 class FLoadSyloDataAction : public TSharedFromThis<FLoadSyloDataAction>
 {
 public:
+	~FLoadSyloDataAction();
+	
 	TFuture<bool> LoadSyloDID(const FString& InDID, const TSharedPtr<FSyloAccessContainer>& AccessContainer, const TSharedPtr<FSyloCache>& SyloCache);
 
 	const TSharedPtr<TArray<uint8>>& GetData() const {return Data;}
@@ -27,6 +29,8 @@ private:
 	FString MakeRequestURI() const;
 
 	TSharedPtr<TPromise<bool>> LoadPromise;
+	
+	TArray<TSharedPtr<TPromise<bool>>> GetDataFromEndpointPromises;
 	
 	FSyloDID DID;
 	
