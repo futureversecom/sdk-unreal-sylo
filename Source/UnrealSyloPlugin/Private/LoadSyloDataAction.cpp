@@ -90,6 +90,20 @@ TFuture<bool> FLoadSyloDataAction::GetResolverEndpoint()
 		return Promise->GetFuture();
 	}
 
+	if (ResolverID == FString(TEXT("fv-altered-state-sylo-staging")))
+	{
+		ResolverEndpoint = TEXT("https://altered-state.data.storage-sylo.futureverse.cloud");
+		Promise->SetValue(true);
+		return Promise->GetFuture();
+	}
+
+	if (ResolverID == FString(TEXT("fv-altered-state-sylo")))
+	{
+		ResolverEndpoint = TEXT("https://altered-state.data.storage-sylo.futureverse.app");
+		Promise->SetValue(true);
+		return Promise->GetFuture();
+	}
+
 	Promise->SetValue(false);
 	return Promise->GetFuture();
 }
@@ -99,22 +113,24 @@ TFuture<bool> FLoadSyloDataAction::GetDataFromEndpoint()
 	TSharedPtr<TPromise<bool>> Promise = MakeShared<TPromise<bool>>();
 
 	TSharedPtr<ISyloAccessSource> SyloAccessSource = AccessContainer->GetAccessSource(ResolverID);
-	
-	if (!SyloAccessSource.IsValid())
-	{
-		UE_LOG(LogSylo, Warning, TEXT("FLoadSyloDataAction::GetDataFromEndpoint failed to find SyloAccessSource for ResolverID: %s"), *ResolverID);
-		Promise->SetValue(false);
-		return Promise->GetFuture();
-	}
+
+	bool bHasAuth = SyloAccessSource.IsValid();
 	
 	FString RequestURI = MakeRequestURI();
-	FString BearerToken = SyloAccessSource->GetAccessToken();
-
+   
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
+	
+	if (bHasAuth)
+	{
+		FString AuthType = TEXT("access_token");
+		RequestURI = FString::Printf(TEXT("%s?authType=%s"), *RequestURI, *AuthType);
+		FString BearerToken = SyloAccessSource->GetAccessToken();
+		HttpRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *BearerToken));
+	}
+	
 	HttpRequest->SetURL(RequestURI);
 	HttpRequest->SetVerb(TEXT("GET"));
 	HttpRequest->SetHeader(TEXT("accept"), TEXT("*/*"));
-	HttpRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *BearerToken));
 
 	LogHttpRequest(HttpRequest);
 
@@ -218,6 +234,5 @@ void FLoadSyloDataAction::LogHttpRequest(const TSharedRef<IHttpRequest, ESPMode:
 
 FString FLoadSyloDataAction::MakeRequestURI() const
 {
-	FString AuthType = TEXT("access_token");
-	return FString::Printf(TEXT("%s/api/v1/objects/get/%s/%s?authType=%s"), *ResolverEndpoint, *DID.DataOwner, *DID.DataId, *AuthType);
+	return FString::Printf(TEXT("%s/api/v1/objects/get/%s/%s"), *ResolverEndpoint, *DID.DataOwner, *DID.DataId);
 }
